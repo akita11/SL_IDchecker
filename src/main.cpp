@@ -22,13 +22,19 @@ String getCardID(){
 
 void setup() {
 	M5.begin();
+	//M5.Ex_I2C.begin(); // need for ATOMS3's Grove port
+  Wire.begin(32, 33); // Core2's PortA
 	mfrc522.PCD_Init(); // Init MFRC522
+	M5.Display.clear();
+	M5.Display.setTextSize(3);
+	M5.Display.setTextScroll(true);
+	M5.Display.printf("RFID Reader\n");
 }
 
 void loop() {
 	String cardID = getCardID();
 	if (cardID.length() > 0) {
-		printf("Card ID: %s\n", cardID.c_str());
+		M5.Display.printf("ID=%s\n", cardID.c_str());
 		delay(1000);
 	}
 }
