@@ -1,35 +1,49 @@
-#include <Arduino.h>
-#include <M5Unified.h>
-#include <PN532_I2C.h>
-#include <PN532.h>
+/**************************************************************************/
+/*! 
+    This example will wait for any ISO14443A card or tag, and
+    depending on the size of the UID will attempt to read from it.
+   
+    If the card has a 4-byte UID it is probably a Mifare
+    Classic card, and the following steps are taken:
+   
+    - Authenticate block 4 (the first block of Sector 1) using
+      the default KEYA of 0XFF 0XFF 0XFF 0XFF 0XFF 0XFF
+    - If authentication succeeds, we can then read any of the
+      4 blocks in that sector (though only block 4 is read here)
+	 
+    If the card has a 7-byte UID it is probably a Mifare
+    Ultralight card, and the 4 byte pages can be read directly.
+    Page 4 is read by default since this is the first 'general-
+    purpose' page on the tags.
 
-#define USE_MIFARE_CASSIC 
+    To enable debug message, define DEBUG in PN532/PN532_debug.h
+*/
+/**************************************************************************/
 
-PN532_I2C pn532i2c(Wire);
-PN532 nfc(pn532i2c);	
+#if 0
+  #include <SPI.h>
+  #include <PN532_SPI.h>
+  #include "PN532.h"
 
-String getCardID(){
-	String id = "";
-	uint8_t ret;
-  uint16_t systemCode = 0xFFFF;
-  uint8_t requestCode = 0x01;       // System Code request
-  uint8_t idm[8];
-  uint8_t pmm[8];
-  uint16_t systemCodeResponse;
-  ret = nfc.felica_Polling(systemCode, requestCode, idm, pmm, &systemCodeResponse, 30); // timeout=100 -> about 3sec
-  if (ret == 1){
-		for (byte i = 0; i < 8; i++) {
-			id += String(idm[i], HEX);
-		}
-	}
-	//printf("card ID: %s (%d)\n", id.c_str(), id.length());
-	return(id);
-}
+  PN532_SPI pn532spi(SPI, 10);
+  PN532 nfc(pn532spi);
+#elif 1
+  #include <PN532_HSU.h>
+  #include <PN532.h>
+      
+  PN532_HSU pn532hsu(Serial1);
+  PN532 nfc(pn532hsu);
+#else 
+  #include <Wire.h>
+  #include <PN532_I2C.h>
+  #include <PN532.h>
+  PN532_I2C pn532i2c(Wire);
+  PN532 nfc(pn532i2c);	
+#endif
+void setup(void) {
+  Serial.begin(115200);
+  Serial.println("Hello!");
 
-void setup() {
-	M5.begin();
-	//M5.Ex_I2C.begin(); // need for ATOMS3's Grove port
-  Wire.begin(32, 33); // Core2's PortA
   nfc.begin();
 
   uint32_t versiondata = nfc.getFirmwareVersion();
@@ -44,21 +58,12 @@ void setup() {
   
   // configure board to read RFID tags
   nfc.SAMConfig();
-
-	M5.Display.clear();
-	M5.Display.setTextSize(3);
-	M5.Display.setTextScroll(true);
-	M5.Display.printf("RFID Reader\n");
+  
+  Serial.println("Waiting for an ISO14443A Card ...");
 }
 
-void loop() {
-/*
-	String cardID = getCardID();
-	if (cardID.length() > 0) {
-		M5.Display.printf("ID=%s\n", cardID.c_str());
-		delay(1000);
-	}
-*/
+
+void loop(void) {
   uint8_t success;
   uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
   uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
@@ -149,5 +154,5 @@ void loop() {
       }
     }
   }
-
 }
+
