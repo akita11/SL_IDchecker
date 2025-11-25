@@ -15,34 +15,37 @@ String getCardID(uint8_t cardType = CARD_FELICA) {
 	String id = "";
 	uint8_t ret;
   uint8_t idm[8];
+  for (uint8_t i = 0; i < 8; i++) idm[i] = 0;
 	if (cardType == CARD_FELICA){
-  	uint16_t systemCode = 0xFFFF;
+    printf("Waiting for a Felica card...\n");
+    uint16_t systemCode = 0xFFFF;
   	uint8_t requestCode = 0x01;       // System Code request
   	uint8_t pmm[8];
   	uint16_t systemCodeResponse;
-  	ret = nfc.felica_Polling(systemCode, requestCode, idm, pmm, &systemCodeResponse, 30); // timeout=100 -> about 3sec
+  	ret = nfc.felica_Polling(systemCode, requestCode, idm, pmm, &systemCodeResponse, 20); // timeout=100 -> about 3sec
   	if (ret == 1){
 			for (byte i = 0; i < 8; i++) {
 				id += String(idm[i], HEX);
 			}
 		}
-		//printf("card ID: %s (%d)\n", id.c_str(), id.length());
+		printf("card ID: %s (%d)\n", id.c_str(), id.length());
 	}
 	else{
-		uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+    printf("Waiting for a Mifare card...\n");
+		uint8_t uidLength; // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
     // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
   	// 'uid' will be populated with the UID, and uidLength will indicate
   	// if the uid is 4 bytes (Mifare Classic) or 7 bytes (Mifare Ultralight)
-  	ret = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, idm, &uidLength);
+  	ret = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, idm, &uidLength, 20); // timeout:1000=28s
     if (ret) {
 	    // Display some basic information about the card
-  	  printf("Found an ISO14443A card, uid=%x (len=%d)\n", idm, idm, uidLength);
+  	  printf("Found an ISO14443A card, uid=%x (len=%d)\n", idm, uidLength);
 	  	if (ret == 1){
 				for (byte i = 0; i < 8; i++) {
 					id += String(idm[i], HEX);
 				}
 			}
-			//printf("card ID: %s (%d)\n", id.c_str(), id.length());
+			printf("card ID: %s (%d)\n", id.c_str(), id.length());
 	    if (uidLength == 4){
 	      // We probably have a Mifare Classic card ... 
      		printf("Seems to be a Mifare Classic card (4 byte UID)\n");
@@ -76,23 +79,23 @@ String getCardID(uint8_t cardType = CARD_FELICA) {
       	else{
         	printf("Ooops ... authentication failed: Try another key？\n");
       	}
-			}
-    }    
-    if (uidLength == 7){
-      // We probably have a Mifare Ultralight card ...
-      printf("Seems to be a Mifare Ultralight tag (7 byte UID)\n");
-      // Try to read the first general-purpose user page (#4)
-      printf("Reading page 4: ");
-      uint8_t data[32];
-      ret = nfc.mifareultralight_ReadPage (4, data);
-      if (ret){
-        // Data seems to have been read ... spit it out
-        printf("%x\n", data);
-        // Wait a bit before reading the card again
-        delay(1000);
-      }
-      else{
-        printf("Ooops ... unable to read the requested page!?\n");
+      }    
+      if (uidLength == 7){
+        // We probably have a Mifare Ultralight card ...
+        printf("Seems to be a Mifare Ultralight tag (7 byte UID)\n");
+        // Try to read the first general-purpose user page (#4)
+        printf("Reading page 4: ");
+        uint8_t data[32];
+        ret = nfc.mifareultralight_ReadPage (4, data);
+        if (ret){
+          // Data seems to have been read ... spit it out
+          printf("%x\n", data);
+          // Wait a bit before reading the card again
+          delay(1000);
+        }
+        else{
+          printf("Ooops ... unable to read the requested page!?\n");
+        }
       }
     }
 	}
@@ -126,12 +129,12 @@ void setup() {
 
 void loop() {
 	String cardID;
-	cardID = getCardID(CARD_MIFARE);
+  cardID = getCardID(CARD_MIFARE);
 	if (cardID.length() > 0) {
 		M5.Display.printf("Mifare, ID=%s\n", cardID.c_str());
 		delay(1000);
 	}
-	cardID = getCardID(CARD_FELICA);
+  cardID = getCardID(CARD_FELICA);
 	if (cardID.length() > 0) {
 		M5.Display.printf("Felica, ID=%s\n", cardID.c_str());
 		delay(1000);
